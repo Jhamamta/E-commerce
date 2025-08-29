@@ -1,37 +1,41 @@
-import streamlit as st
+# frontend.py
 import pandas as pd
-from backend import compare_prices
+import matplotlib.pyplot as plt
+from backend import compare_prices  # make sure your backend.py is in the same folder
 
-st.title("🛒 Price Comparison Tool")
+def main():
+    product_name = input("Enter the product to search: ")
 
-# Input field
-product_name = st.text_input("Enter a product name (e.g. Samsung Galaxy S24):")
+    # Get all results from backend
+    results = compare_prices(product_name)
 
-if st.button("Search"):
-    if product_name.strip():
-        results = compare_prices(product_name)
+    if not results:
+        print("No products found.")
+        return
 
-        if results:
-            df = pd.DataFrame(results)
+    # Convert to DataFrame
+    df = pd.DataFrame(results)
 
-            # Show the full table
-            st.subheader("Search Results")
-            st.dataframe(df)
+    # Get top 5 cheapest
+    top5 = df.nsmallest(5, 'Price')
 
-            # Download CSV
-            st.download_button(
-                label="📥 Download Results as CSV",
-                data=df.to_csv(index=False),
-                file_name="price_comparison.csv",
-                mime="text/csv"
-            )
+    # Display table
+    print("\n--- Top 5 Cheapest Products ---")
+    print(top5[['Product Name', 'Price', 'Store', 'URL']].to_string(index=False))
 
-            # Visualization: Top 5 cheapest products
-            st.subheader("📊 Top 5 Cheapest Options")
-            top5 = df.nsmallest(5, "Price")
-            st.bar_chart(top5.set_index("Product Name")["Price"])
+    # Visualization
+    plt.figure(figsize=(10,6))
+    plt.barh(top5['Product Name'], top5['Price'], color='skyblue')
+    plt.xlabel('Price (₦)')
+    plt.title(f'Top 5 Cheapest "{product_name}" Products')
+    plt.gca().invert_yaxis()  # cheapest on top
+    plt.tight_layout()
+    plt.show()
 
-        else:
-            st.warning("No products found. Try a different search.")
-    else:
-        st.error("Please enter a product name.")
+    # Save top 5 to CSV
+    csv_filename = "top5_products.csv"
+    top5.to_csv(csv_filename, index=False)
+    print(f"\nTop 5 products saved to {csv_filename}")
+
+if __name__ == "__main__":
+    main()
