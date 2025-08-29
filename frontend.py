@@ -1,45 +1,37 @@
 import streamlit as st
 import pandas as pd
-from backend import compare_prices   # import your backend function
+from backend import compare_prices
 
-st.set_page_config(page_title="E-Commerce Price Comparison", layout="wide")
+st.title("🛒 Price Comparison Tool")
 
-st.title("🛒 Automated Price Comparison Tool")
-
-# --- User Input ---
-product_name = st.text_input("Enter the product name to search:")
+# Input field
+product_name = st.text_input("Enter a product name (e.g. Samsung Galaxy S24):")
 
 if st.button("Search"):
-    if product_name.strip() == "":
-        st.warning("⚠️ Please enter a product name")
-    else:
-        st.info(f"Searching for **{product_name}** across stores...")
-
+    if product_name.strip():
         results = compare_prices(product_name)
 
         if results:
-            # Convert to dataframe for display
             df = pd.DataFrame(results)
 
-            # Normalize Naira price display
-            df["Price"] = df["Price"].apply(lambda x: f"₦{x:,.0f}")
+            # Show the full table
+            st.subheader("Search Results")
+            st.dataframe(df)
 
-            # Show table
-            st.subheader("📊 Price Comparison Results")
-            st.dataframe(df, use_container_width=True)
-
-            # CSV download
-            csv = pd.DataFrame(results).to_csv(index=False).encode("utf-8")
+            # Download CSV
             st.download_button(
-                label="⬇️ Download Results as CSV",
-                data=csv,
+                label="📥 Download Results as CSV",
+                data=df.to_csv(index=False),
                 file_name="price_comparison.csv",
-                mime="text/csv",
+                mime="text/csv"
             )
 
-            # Show cheapest 5 (optional)
-            st.subheader("🏷️ Top 5 Cheapest Options")
-            st.table(df.head(5))
-        else:
-            st.error("No results found. Please try another product.")
+            # Visualization: Top 5 cheapest products
+            st.subheader("📊 Top 5 Cheapest Options")
+            top5 = df.nsmallest(5, "Price")
+            st.bar_chart(top5.set_index("Product Name")["Price"])
 
+        else:
+            st.warning("No products found. Try a different search.")
+    else:
+        st.error("Please enter a product name.")
