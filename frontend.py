@@ -1,41 +1,55 @@
-# frontend.py
+import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-from backend import compare_prices  # make sure your backend.py is in the same folder
+from backend import compare_prices  # import backend function
 
-def main():
-    product_name = input("Enter the product to search: ")
+# ==============================
+#   Streamlit Frontend
+# ==============================
+st.set_page_config(page_title="Price Comparison", layout="wide")
 
-    # Get all results from backend
-    results = compare_prices(product_name)
+st.title("🛒 E-commerce Price Comparison Tool")
 
-    if not results:
-        print("No products found.")
-        return
+# Search input
+product_name = st.text_input("Enter the product you want to search:")
 
-    # Convert to DataFrame
-    df = pd.DataFrame(results)
+if st.button("Search"):
+    if not product_name.strip():
+        st.warning("Please enter a product name.")
+    else:
+        with st.spinner("Searching across Jumia & Slot..."):
+            results = compare_prices(product_name)
 
-    # Get top 5 cheapest
-    top5 = df.nsmallest(5, 'Price')
+        if results:
+            # Convert results to DataFrame
+            df = pd.DataFrame(results)
 
-    # Display table
-    print("\n--- Top 5 Cheapest Products ---")
-    print(top5[['Product Name', 'Price', 'Store', 'URL']].to_string(index=False))
+            st.subheader("📋 All Results")
+            st.dataframe(df, use_container_width=True)
 
-    # Visualization
-    plt.figure(figsize=(10,6))
-    plt.barh(top5['Product Name'], top5['Price'], color='skyblue')
-    plt.xlabel('Price (₦)')
-    plt.title(f'Top 5 Cheapest "{product_name}" Products')
-    plt.gca().invert_yaxis()  # cheapest on top
-    plt.tight_layout()
-    plt.show()
+            # Show top 5 cheapest
+            top5 = df.nsmallest(5, "Price")
 
-    # Save top 5 to CSV
-    csv_filename = "top5_products.csv"
-    top5.to_csv(csv_filename, index=False)
-    print(f"\nTop 5 products saved to {csv_filename}")
+            st.subheader("💰 Top 5 Cheapest Options")
+            st.dataframe(top5, use_container_width=True)
 
-if __name__ == "__main__":
-    main()
+            # Visualization
+            st.subheader("📊 Price Comparison (Top 5)")
+            fig, ax = plt.subplots()
+            ax.barh(top5["Product Name"], top5["Price"], color="skyblue")
+            ax.set_xlabel("Price (₦)")
+            ax.set_ylabel("Product")
+            ax.set_title("Top 5 Cheapest Prices")
+            st.pyplot(fig)
+
+            # Download button
+            csv = top5.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                label="⬇️ Download Top 5 as CSV",
+                data=csv,
+                file_name="top5_cheapest.csv",
+                mime="text/csv"
+            )
+
+        else:
+            st.error("No products found for your search. Try another keyword.")
