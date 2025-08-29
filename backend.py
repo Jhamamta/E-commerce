@@ -7,7 +7,6 @@ import csv
 #                       Price Comparison Backend
 # =================================================================
 
-# Global header to make the scraper look like a real browser
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                   'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -19,15 +18,12 @@ headers = {
 # =================================================================
 
 def scrape_jumia(product_name):
-    """
-    Scrapes Jumia for the given product name and returns a list of dictionaries.
-    """
     search_query = product_name.replace(" ", "%20")
     jumia_url = f"https://www.jumia.com.ng/catalog/?q={search_query}"
 
     products = []
     try:
-        response = requests.get(jumia_url, headers=headers, verify=False)
+        response = requests.get(jumia_url, headers=headers, verify=False, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -42,7 +38,6 @@ def scrape_jumia(product_name):
                 name = name_tag.get_text(strip=True)
                 price_text = price_tag.get_text(strip=True)
 
-                # Clean price
                 cleaned_price = re.sub(r'[₦,]', '', price_text)
                 numbers = re.findall(r'\d+', cleaned_price)
                 if not numbers:
@@ -56,8 +51,8 @@ def scrape_jumia(product_name):
                     'URL': url
                 })
 
-    except requests.exceptions.RequestException as e:
-        print(f"An error occurred while scraping Jumia: {e}")
+    except Exception as e:
+        print(f"⚠️ Jumia error: {e}")
 
     return products
 
@@ -66,15 +61,12 @@ def scrape_jumia(product_name):
 # =================================================================
 
 def scrape_slot(product_name):
-    """
-    Scrapes Slot.ng for the given product name and returns a list of dictionaries.
-    """
     search_query = product_name.replace(" ", "+")
     slot_url = f"https://slot.ng/index.php/catalogsearch/result/?q={search_query}"
 
     products = []
     try:
-        response = requests.get(slot_url, headers=headers, verify=False)
+        response = requests.get(slot_url, headers=headers, verify=False, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -89,7 +81,6 @@ def scrape_slot(product_name):
                 url = name_tag["href"]
                 price_text = price_tag.get_text(strip=True)
 
-                # Clean price
                 cleaned_price = re.sub(r'[₦,NGN\s]', '', price_text)
                 numbers = re.findall(r'\d+', cleaned_price)
                 if not numbers:
@@ -103,49 +94,64 @@ def scrape_slot(product_name):
                     'URL': url
                 })
 
-    except requests.exceptions.RequestException as e:
-        print(f"An error occurred while scraping Slot: {e}")
+    except Exception as e:
+        print(f"⚠️ Slot error: {e}")
 
     return products
 
 # =================================================================
-#                   Filtering Function
+#                         Filtering
+# =================================================================
+
+# =================================================================
+#                   Filtering Function (Hybrid)
 # =================================================================
 
 def filter_results(products, query):
     """
-    Filters products so that only those containing ALL query words appear.
+    Filters products with a hybrid approach:
+    1. Prefer exact phrase matches of the query.
+    2. If no exact phrase matches exist, fall back to word-based filtering.
     """
-    query_words = query.lower().split()
-    filtered = []
+    query = query.lower().strip()
+    query_words = query.split()
+
+    exact_matches = []
+    word_matches = []
+
     for p in products:
         title = p["Product Name"].lower()
-        if all(word in title for word in query_words):
-            filtered.append(p)
-    return filtered
+
+        # Check for exact phrase
+        if query in title:
+            exact_matches.append(p)
+        # Otherwise check for all words present
+        elif all(word in title for word in query_words):
+            word_matches.append(p)
+
+    # Prefer exact matches; if none, return word matches
+    if exact_matches:
+        return exact_matches
+    else:
+        return word_matches
+
 
 # =================================================================
-#                       Main Function
+#                         Main Function
 # =================================================================
 
 def compare_prices(product_name):
-    """
-    Compares prices for a given product on Jumia and Slot.
-    Saves results to a CSV (overwrites each search).
-    """
     jumia_results = scrape_jumia(product_name)
     slot_results = scrape_slot(product_name)
 
     all_products = jumia_results + slot_results
 
-    # Apply stricter filtering
     all_products = filter_results(all_products, product_name)
 
     if not all_products:
         print("No products found.")
         return None
 
-    # Sort the products by price in ascending order
     sorted_products = sorted(all_products, key=lambda x: x['Price'])
 
     # Save to CSV (overwrite each time)
@@ -157,11 +163,11 @@ def compare_prices(product_name):
     return sorted_products
 
 # =================================================================
-#                       Test Runner
+#                         Test Runner
 # =================================================================
 
 if __name__ == '__main__':
-    test_product = "Samsung Galaxy S24"
+    test_product = "Redmi Note 14"
     print(f"Searching for '{test_product}' on Jumia and Slot...")
     final_data = compare_prices(test_product)
 
