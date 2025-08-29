@@ -12,12 +12,16 @@ headers = {
 # =================================================================
 #                       Filter Function
 # =================================================================
-def is_relevant_product(name, keyword="s24"):
+def is_relevant_product(name, keyword="s24", brand="samsung"):
     """
     Filters out irrelevant products (cases, covers, accessories, etc.)
+    Ensures brand and keyword both appear in the product name.
     """
     name = name.lower()
-    if keyword.lower() in name:
+    keyword = keyword.lower()
+    brand = brand.lower()
+
+    if keyword in name and brand in name:
         blacklist = ["case", "cover", "screen", "protector", "guard", 
                      "charger", "watch", "band", "strap", "cable"]
         return not any(word in name for word in blacklist)
@@ -117,30 +121,41 @@ def scrape_slot(product_name):
 # =================================================================
 #                       Main Function
 # =================================================================
+# =================================================================
+#                       Main Function
+# =================================================================
 def compare_prices(product_name):
     """
-    Compares prices for a given product on Jumia and Slot.
+    Compares prices for a given product on multiple e-commerce sites.
+    Applies filtering to remove irrelevant products.
     """
+    # Scrape from Jumia
     jumia_results = scrape_jumia(product_name)
+    
+    # Scrape from Slot
     slot_results = scrape_slot(product_name)
 
-    # Use last word in product name as keyword (e.g. "S24")
-    keyword = product_name.split()[-1] if product_name else ""
+    # Use first word as brand, last word as keyword
+    words = product_name.split()
+    brand = words[0] if words else ""
+    keyword = words[-1] if words else ""
 
-    # Filter irrelevant items
-    jumia_results = [p for p in jumia_results if is_relevant_product(p['Product Name'], keyword)]
-    slot_results = [p for p in slot_results if is_relevant_product(p['Product Name'], keyword)]
+    # Apply filtering
+    jumia_results = [p for p in jumia_results if is_relevant_product(p['Product Name'], keyword, brand)]
+    slot_results = [p for p in slot_results if is_relevant_product(p['Product Name'], keyword, brand)]
 
+    # Merge results
     all_products = jumia_results + slot_results
     
     if not all_products:
-        print("No relevant products found.")
+        print("No products found.")
         return None
 
-    # Sort by price
+    # Sort the products by price in ascending order
     sorted_products = sorted(all_products, key=lambda x: x['Price'])
 
     return sorted_products
+
 
 # =================================================================
 #                       Run Test
