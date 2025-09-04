@@ -27,15 +27,17 @@ def scrape_jumia(product_name):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        containers = soup.select('a.core')
+        # Jumia product containers (more stable selector)
+        containers = soup.select("article.prd")
 
         for container in containers:
-            url = "https://www.jumia.com.ng" + container['href']
-            name_tag = container.select_one('h3.name')
-            price_tag = container.select_one('div.prc')
+            name_tag = container.select_one("h3.name")
+            price_tag = container.select_one("div.prc")
+            link_tag = container.select_one("a.core")
 
-            if name_tag and price_tag:
+            if name_tag and price_tag and link_tag:
                 name = name_tag.get_text(strip=True)
+                url = "https://www.jumia.com.ng" + link_tag['href']
                 price_text = price_tag.get_text(strip=True)
 
                 cleaned_price = re.sub(r'[₦,]', '', price_text)
@@ -54,6 +56,7 @@ def scrape_jumia(product_name):
     except Exception as e:
         print(f"⚠️ Jumia error: {e}")
 
+    print(f"✅ Jumia found {len(products)} results for '{product_name}'")
     return products
 
 # =================================================================
